@@ -1,8 +1,10 @@
 package org.myshelf.pipelines;
 
-public class FooStep implements PipelineStep<String, String> {
+import org.elasticsearch.search.SearchHits;
+
+public class FooStep implements PipelineStep<SearchHits, String> {
     @Override
-    public String apply(String s) {
-        return s + "Foo";
+    public String apply(SearchHits s) {
+        return s.totalHits + " Foos";
     }
 }
