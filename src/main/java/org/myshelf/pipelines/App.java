@@ -13,22 +13,27 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Hello world!
  */
 public class App {
     public static void main(String[] args) throws InterruptedException, IOException {
-        RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost("localhost", 9200, "https")));
-        SearchRequest request = new SearchRequest("test");
+        RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost("localhost", 9200, "http")));
+        SearchRequest request = new SearchRequest("shakespeare");
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.query(QueryBuilders.matchAllQuery());
-        sourceBuilder.size(100);
+        sourceBuilder.size(1_000);
         request.source(sourceBuilder);
         request.scroll(TimeValue.timeValueMinutes(1L));
 
         Flowable<SearchHits> source = ElasticsearchSource.search(client, request, RequestOptions.DEFAULT);
+
+        AtomicInteger counter = new AtomicInteger(0);
 
         PipelineConfig config = PipelineConfig.builder()
                 .parallel(Runtime.getRuntime().availableProcessors())
@@ -37,14 +42,19 @@ public class App {
                 .source(source)
                 .config(config)
                 .steps(PipelineStep
-                        .pipe(new FooStep())
-                        .pipe(new ThreadStep())
-                        .pipe(new HeavyStep(500))
+                        .pipe((SearchHits hits) -> hits.getHits().length)
+                        .pipe(counter::addAndGet)
+                        .pipe((l) -> Thread.currentThread().getName() + ": " + l.toString())
                 )
                 .build();
 
-        pipeline.exec().subscribe(res -> System.out.println("Mssg: " + res));
+        PrintWriter writer = new PrintWriter(new FileWriter("output.log"));
 
-        System.in.read();
+        pipeline.exec().doFinally(() -> System.out.println(Thread.currentThread().getName() + ": Finished writing!")).subscribe(writer::println);
+
+        writer.flush();
+        System.out.println("Finalizing!");
+        writer.close();
+        client.close();
     }
 }
