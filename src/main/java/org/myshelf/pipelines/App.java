@@ -16,6 +16,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -45,17 +47,19 @@ public class App {
                         // TODO remove need of explicit setting type here
                         .pipe((SearchHits hits) -> hits.getHits().length)
                         .pipe(counter::addAndGet)
-                        .pipe((l) -> Thread.currentThread().getName() + ": " + l.toString())
+                        .pipe(l -> {
+                            long waiting = (long) (Math.random() * 1000);
+                            try {
+                                Thread.sleep(waiting);
+                            } catch (InterruptedException ignored) {
+                            }
+                            return "Took " + waiting + "ms :: " + l;
+                        })
+                        .pipe(l -> LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH.mm.ss.SSS")) + " :: " + l)
+                        .pipe((l) -> String.format("%1$" + 26 + "s",Thread.currentThread().getName()) + " :: " + l)
                 )
                 .build();
 
-        PrintWriter writer = new PrintWriter(new FileWriter("output.log"));
-
-        pipeline.exec().doFinally(() -> System.out.println(Thread.currentThread().getName() + ": Finished writing!")).subscribe(writer::println);
-
-        writer.flush();
-        System.out.println("Finalizing!");
-        writer.close();
-        client.close();
+        pipeline.exec().doFinally(client::close).subscribe(System.out::println);
     }
 }

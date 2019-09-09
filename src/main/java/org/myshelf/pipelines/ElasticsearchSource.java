@@ -32,8 +32,8 @@ public class ElasticsearchSource {
             scrollRequest.scroll(scroll);
             SearchResponse response = client.scroll(scrollRequest, options);
             SearchHits hits = response.getHits();
-            emitter.onNext(hits);
             if (hits.getHits() != null && hits.getHits().length > 0) {
+                emitter.onNext(hits);
                 return response.getScrollId();
             } else {
                 emitter.onComplete();

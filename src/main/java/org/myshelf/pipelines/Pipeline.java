@@ -17,7 +17,7 @@ public class Pipeline<S, T> {
     public Flowable<T> exec() {
         return this.source
                 .parallel(this.config.getParallel())
-                .runOn(Schedulers.newThread())
+                .runOn(Schedulers.io())
                 .map(steps.build()::apply)
                 .sequential();
     }
