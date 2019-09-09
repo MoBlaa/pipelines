@@ -42,6 +42,7 @@ public class App {
                 .source(source)
                 .config(config)
                 .steps(PipelineStep
+                        // TODO remove need of explicit setting type here
                         .pipe((SearchHits hits) -> hits.getHits().length)
                         .pipe(counter::addAndGet)
                         .pipe((l) -> Thread.currentThread().getName() + ": " + l.toString())
